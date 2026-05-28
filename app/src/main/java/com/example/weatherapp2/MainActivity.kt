@@ -2,8 +2,10 @@ package com.example.weatherapp2
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -13,10 +15,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.weatherapp2.ui.nav.BottomNavBar
 import com.example.weatherapp2.ui.nav.BottomNavItem
 import com.example.weatherapp2.ui.nav.MainNavHost
+import com.example.weatherapp2.ui.nav.Route
 import com.example.weatherapp2.ui.theme.WeatherAPP2Theme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,8 +32,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: MainViewModel by viewModels()
             val navController = rememberNavController()
-
             var showDialog by remember { mutableStateOf(false) }
+
+            val currentRoute = navController.currentBackStackEntryAsState()
+            val showButton = currentRoute.value?.destination
+                ?.hasRoute(Route.List::class) == true
+
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+                onResult = {}
+            )
 
             WeatherAPP2Theme {
                 if (showDialog) CityDialog(
@@ -61,12 +74,15 @@ class MainActivity : ComponentActivity() {
                         BottomNavBar(navController = navController, items = items)
                     },
                     floatingActionButton = {
-                        FloatingActionButton(onClick = { showDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Adicionar")
+                        if (showButton) {
+                            FloatingActionButton(onClick = { showDialog = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Adicionar")
+                            }
                         }
                     }
                 ) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
+                        launcher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
                         MainNavHost(
                             navController = navController,
                             viewModel = viewModel
