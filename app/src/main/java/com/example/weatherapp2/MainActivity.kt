@@ -6,7 +6,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -15,15 +14,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.example.weatherapp2.db.fb.FBDatabase
 import com.example.weatherapp2.ui.nav.BottomNavBar
 import com.example.weatherapp2.ui.nav.BottomNavItem
 import com.example.weatherapp2.ui.nav.MainNavHost
 import com.example.weatherapp2.ui.nav.Route
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import com.example.weatherapp2.ui.theme.WeatherAPP2Theme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,7 +33,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val viewModel: MainViewModel by viewModels()
+            val fbDB = remember { FBDatabase() }
+            val viewModel: MainViewModel = viewModel(
+                factory = MainViewModelFactory(fbDB)
+            )
             val navController = rememberNavController()
             var showDialog by remember { mutableStateOf(false) }
 
@@ -56,7 +60,10 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("Bem-vindo/a!") },
+                            title = {
+                                val name = viewModel.user?.name ?: "[carregando...]"
+                                Text("Bem-vindo/a! $name")
+                            },
                             actions = {
                                 IconButton(onClick = {
                                     Firebase.auth.signOut()
