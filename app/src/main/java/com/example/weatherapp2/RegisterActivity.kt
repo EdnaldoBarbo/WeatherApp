@@ -1,11 +1,12 @@
 package com.example.weatherapp2
 
-import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -15,6 +16,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.example.weatherapp2.ui.theme.WeatherAPP2Theme
 
 class RegisterActivity : ComponentActivity() {
@@ -32,58 +35,75 @@ class RegisterActivity : ComponentActivity() {
 
 @Composable
 fun RegisterPage(modifier: Modifier = Modifier) {
-    val modifier = modifier.fillMaxWidth(fraction = 0.9f)
+    val childModifier = Modifier.fillMaxWidth(fraction = 0.9f)
     var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordConfirm by rememberSaveable { mutableStateOf("") }
-    val activity = LocalContext.current as Activity
+    val activity = LocalContext.current as android.app.Activity
 
     Column(
-        modifier = modifier.padding(24.dp).fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = CenterHorizontally
     ) {
         Text(text = "Criar conta", fontSize = 24.sp)
-        Spacer(modifier = modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
         OutlinedTextField(
             value = name,
             label = { Text("Nome") },
-            modifier = modifier,
+            modifier = childModifier,
             onValueChange = { name = it }
         )
-        Spacer(modifier = modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
         OutlinedTextField(
             value = email,
             label = { Text("E-mail") },
-            modifier = modifier,
+            modifier = childModifier,
             onValueChange = { email = it }
         )
-        Spacer(modifier = modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
         OutlinedTextField(
             value = password,
             label = { Text("Senha") },
-            modifier = modifier,
+            modifier = childModifier,
             onValueChange = { password = it },
             visualTransformation = PasswordVisualTransformation()
         )
-        Spacer(modifier = modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
         OutlinedTextField(
             value = passwordConfirm,
             label = { Text("Confirmar senha") },
-            modifier = modifier,
+            modifier = childModifier,
             onValueChange = { passwordConfirm = it },
             visualTransformation = PasswordVisualTransformation()
         )
-        Spacer(modifier = modifier.size(12.dp))
+        Spacer(modifier = Modifier.size(12.dp))
         Row(
-            modifier = modifier.padding(12.dp).fillMaxWidth(),
+            modifier = childModifier.padding(12.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Button(
                 onClick = {
-                    Toast.makeText(activity, "Registro OK!", Toast.LENGTH_LONG).show()
-                    activity.finish()
+                    Firebase.auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(activity) { task ->
+                            if (task.isSuccessful) {
+                                Toast.makeText(
+                                    activity,
+                                    "Registro OK!",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    activity,
+                                    "Registro FALHOU!",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
                 },
                 enabled = name.isNotEmpty() && email.isNotEmpty()
                         && password.isNotEmpty()
@@ -91,7 +111,9 @@ fun RegisterPage(modifier: Modifier = Modifier) {
             ) {
                 Text("Registrar")
             }
-            Button(onClick = { name = ""; email = ""; password = ""; passwordConfirm = "" }) {
+            Button(onClick = {
+                name = ""; email = ""; password = ""; passwordConfirm = ""
+            }) {
                 Text("Limpar")
             }
         }

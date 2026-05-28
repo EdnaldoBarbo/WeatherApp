@@ -22,6 +22,8 @@ import com.example.weatherapp2.ui.nav.BottomNavBar
 import com.example.weatherapp2.ui.nav.BottomNavItem
 import com.example.weatherapp2.ui.nav.MainNavHost
 import com.example.weatherapp2.ui.nav.Route
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.example.weatherapp2.ui.theme.WeatherAPP2Theme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +58,9 @@ class MainActivity : ComponentActivity() {
                         TopAppBar(
                             title = { Text("Bem-vindo/a!") },
                             actions = {
-                                IconButton(onClick = { finish() }) {
+                                IconButton(onClick = {
+                                    Firebase.auth.signOut()
+                                }) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                                         contentDescription = "Sair"
