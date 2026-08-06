@@ -15,11 +15,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
+import com.example.weatherapp2.api.WeatherService
 import com.example.weatherapp2.db.fb.FBDatabase
 import com.example.weatherapp2.ui.nav.BottomNavBar
 import com.example.weatherapp2.ui.nav.BottomNavItem
@@ -34,15 +33,22 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val fbDB = remember { FBDatabase() }
+            val weatherService = remember { WeatherService(this) }
             val viewModel: MainViewModel = viewModel(
-                factory = MainViewModelFactory(fbDB)
+                factory = MainViewModelFactory(fbDB, weatherService)
             )
             val navController = rememberNavController()
             var showDialog by remember { mutableStateOf(false) }
 
-            val currentRoute = navController.currentBackStackEntryAsState()
-            val showButton = currentRoute.value?.destination
-                ?.hasRoute(Route.List::class) == true
+            LaunchedEffect(viewModel.page) {
+                navController.navigate(viewModel.page) {
+                    popUpTo(navController.graph.startDestinationId) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
 
             val launcher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.RequestPermission(),
@@ -53,7 +59,7 @@ class MainActivity : ComponentActivity() {
                 if (showDialog) CityDialog(
                     onDismiss = { showDialog = false },
                     onConfirm = { city ->
-                        if (city.isNotBlank()) viewModel.add(city)
+                        if (city.isNotBlank()) viewModel.addCity(city)
                         showDialog = false
                     }
                 )
@@ -82,10 +88,10 @@ class MainActivity : ComponentActivity() {
                             BottomNavItem.ListButton,
                             BottomNavItem.MapButton,
                         )
-                        BottomNavBar(navController = navController, items = items)
+                        BottomNavBar(viewModel = viewModel, items = items)
                     },
                     floatingActionButton = {
-                        if (showButton) {
+                        if (viewModel.page == Route.List) {
                             FloatingActionButton(onClick = { showDialog = true }) {
                                 Icon(Icons.Default.Add, contentDescription = "Adicionar")
                             }

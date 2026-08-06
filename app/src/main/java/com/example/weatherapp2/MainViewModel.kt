@@ -1,25 +1,43 @@
 package com.example.weatherapp2
 
-import androidx.compose.runtime.mutableStateListOf
+import android.graphics.Bitmap
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.gms.maps.model.LatLng
+import com.example.weatherapp2.api.WeatherService
 import com.example.weatherapp2.db.fb.FBCity
 import com.example.weatherapp2.db.fb.FBDatabase
 import com.example.weatherapp2.db.fb.FBUser
 import com.example.weatherapp2.db.fb.toFBCity
 import com.example.weatherapp2.model.City
+import com.example.weatherapp2.model.Forecast
 import com.example.weatherapp2.model.User
+import com.example.weatherapp2.model.Weather
+import com.example.weatherapp2.ui.nav.Route
 
-class MainViewModel(private val db: FBDatabase) : ViewModel(), FBDatabase.Listener {
-    private val _cities = mutableStateListOf<City>()
+class MainViewModel(private val db: FBDatabase, private val service: WeatherService) : ViewModel(), FBDatabase.Listener {
+    private val _cities = mutableStateMapOf<String, City>()
     val cities: List<City>
-        get() = _cities
+        get() = _cities.values.toList()
+
+    private val _weather = mutableStateMapOf<String, Weather>()
+    private val _forecast = mutableStateMapOf<String, List<Forecast>?>()
 
     private val _user = mutableStateOf<User?>(null)
     val user: User?
         get() = _user.value
+
+    private var _page = mutableStateOf<Route>(Route.Home)
+    var page: Route
+        get() = _page.value
+        set(value) { _page.value = value }
+
+    private var _city = mutableStateOf<String?>(null)
+    var city: String?
+        get() = _city.value
+        set(value) { _city.value = value }
 
     init {
         db.setListener(this)
@@ -29,35 +47,91 @@ class MainViewModel(private val db: FBDatabase) : ViewModel(), FBDatabase.Listen
         db.remove(city.toFBCity())
     }
 
-    fun add(name: String, location: LatLng? = null) {
-        db.add(City(name = name, location = location).toFBCity())
+    fun addCity(name: String) {
+        service.getLocation(name) { lat, lng ->
+            if (lat != null && lng != null) {
+                db.add(City(name = name, location = LatLng(lat, lng)).toFBCity())
+            }
+        }
+    }
+
+    fun addCity(location: LatLng) {
+        service.getName(location.latitude, location.longitude) { name ->
+            if (name != null) {
+                db.add(City(name = name, location = location).toFBCity())
+            }
+        }
+    }
+
+    fun weather(name: String): Weather {
+        val w = _weather[name]
+        if (w == null) {
+            _weather[name] = Weather.LOADING
+            loadWeather(name)
+        }
+        return _weather[name] ?: Weather.LOADING
+    }
+
+    private fun loadWeather(name: String) {
+        service.getWeather(name) { apiWeather ->
+            apiWeather?.let {
+                val weather = it.toWeather()
+                _weather[name] = weather
+                loadBitmap(name)
+            }
+        }
+    }
+
+    private fun loadBitmap(name: String) {
+        val weather = _weather[name]
+        if (weather != null && weather.imgUrl.isNotEmpty()) {
+            service.getBitmap(weather.imgUrl) { bitmap ->
+                if (bitmap != null) {
+                    _weather[name] = weather.copy(bitmap = bitmap)
+                }
+            }
+        }
+    }
+
+    fun forecast(name: String): List<Forecast>? {
+        val f = _forecast[name]
+        if (f == null) {
+            loadForecast(name)
+        }
+        return _forecast[name]
+    }
+
+    private fun loadForecast(name: String) {
+        service.getForecast(name) { apiForecast ->
+            apiForecast?.let {
+                _forecast[name] = it.forecast.forecastday.map { it.toForecast() }
+            }
+        }
     }
 
     override fun onUserLoaded(user: FBUser) {
         _user.value = user.toUser()
     }
 
-    override fun onUserSignOut() {
-        // TODO
-    }
+    override fun onUserSignOut() {}
 
     override fun onCityAdded(city: FBCity) {
-        _cities.add(city.toCity())
+        _cities[city.name!!] = city.toCity()
     }
 
     override fun onCityUpdated(city: FBCity) {
-        // TODO
+        _cities[city.name!!] = city.toCity()
     }
 
     override fun onCityRemoved(city: FBCity) {
-        _cities.remove(city.toCity())
+        _cities.remove(city.name!!)
     }
 }
 
-class MainViewModelFactory(private val db: FBDatabase) : ViewModelProvider.Factory {
+class MainViewModelFactory(private val db: FBDatabase, private val service: WeatherService) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-            return MainViewModel(db) as T
+            return MainViewModel(db, service) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -6,10 +6,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.scale
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import com.example.weatherapp2.MainViewModel
+import com.example.weatherapp2.R
 
 @Composable
 fun MapPage(
@@ -28,46 +31,26 @@ fun MapPage(
 
     val camPosState = rememberCameraPositionState()
 
-    val recife = remember { MarkerState(LatLng(-8.05, -34.9)) }
-    val caruaru = remember { MarkerState(LatLng(-8.27, -35.98)) }
-    val joaopessoa = remember { MarkerState(LatLng(-7.12, -34.84)) }
-
     GoogleMap(
         modifier = modifier.fillMaxSize(),
         cameraPositionState = camPosState,
         properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
         uiSettings = MapUiSettings(myLocationButtonEnabled = true),
-        onMapClick = { latLng ->
-            viewModel.add(
-                "Cidade@${latLng.latitude}:${latLng.longitude}",
-                location = latLng
-            )
+        onMapClick = {
+            viewModel.addCity(it)
         }
     ) {
-        Marker(
-            state = recife,
-            title = "Recife",
-            snippet = "Marcador em Recife",
-            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)
-        )
-        Marker(
-            state = caruaru,
-            title = "Caruaru",
-            snippet = "Marcador em Caruaru",
-            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)
-        )
-        Marker(
-            state = joaopessoa,
-            title = "João Pessoa",
-            snippet = "Marcador em João Pessoa",
-            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)
-        )
         viewModel.cities.forEach { city ->
             if (city.location != null) {
+                val weather = viewModel.weather(city.name)
+                val image = weather.bitmap ?: ContextCompat.getDrawable(context, R.drawable.loading)!!.toBitmap()
+                val marker = BitmapDescriptorFactory.fromBitmap(image.scale(120, 120))
+                
                 Marker(
                     state = MarkerState(position = city.location),
                     title = city.name,
-                    snippet = "${city.location}"
+                    snippet = weather.desc,
+                    icon = marker
                 )
             }
         }
